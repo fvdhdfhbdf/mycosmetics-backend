@@ -32,7 +32,7 @@ const DATA_FILE = process.env.DATA_FILE || path.join(__dirname, 'data.json');
 const VALID_IDS = {
     CAPE: ['none', 'sharingan', 'itachi', 'sasuke', 'money'],
     HAT: ['none', 'top_hat', 'party_hat'],
-    WINGS: ['none', 'heaven'],
+    WINGS: ['none', 'heaven', 'purple', 'dragon', 'devil', 'blue_dragon'],
 };
 
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;

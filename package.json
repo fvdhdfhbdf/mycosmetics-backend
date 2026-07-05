@@ -1,0 +1,17 @@
+{
+  "name": "mycosmetics-backend",
+  "version": "1.0.0",
+  "description": "Self-hosted backend for the mycosmetics Fabric client mod. Stores each player's chosen cape/hat by UUID so any client running the mod can look them up - no Minecraft server-side mod required.",
+  "private": true,
+  "main": "server.js",
+  "type": "commonjs",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "express": "^4.19.2"
+  }
+}

@@ -48,7 +48,11 @@ const REDIS_KEY = 'mycosmetics:data'; // single key holding the whole {uuid: {..
 // value from a broken client can't end up rendered (or crash a renderer
 // that assumes every id resolves to a known texture).
 const VALID_IDS = {
-    CAPE: ['none', 'sharingan', 'itachi', 'sasuke', 'money', 'grey_lightning', 'black_galaxy', 'black_hole'],
+    CAPE: [
+        'none', 'sharingan', 'itachi', 'sasuke', 'money', 'grey_lightning', 'black_galaxy', 'black_hole',
+        'white_galaxy', 'clouds', 'half_face', 'galaxy', 'purple_eyes', 'blue_eyes', 'red_eye',
+        'dragon_eye', 'purple_ocean', 'patrick', 'krusty_crab', 'blue_galaxy', 'sakura', 'rgb_fish',
+    ],
     HAT: ['none', 'top_hat', 'party_hat'],
     WINGS: ['none', 'heaven', 'purple', 'dragon', 'devil', 'blue_dragon'],
 };

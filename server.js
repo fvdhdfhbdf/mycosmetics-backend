@@ -64,6 +64,39 @@ const VALID_PLATFORMS = ['none', 'tiktok', 'twitch', 'youtube'];
 const STATUS_TEXT_MAX_LENGTH = 32;
 const HEX_COLOR_PATTERN = /^#[0-9a-fA-F]{6}$/;
 
+// Tier badge (gamemode icon + "HT3"-style label) above the nametag. Kept in
+// sync with PlayerTier.GameMode on the client. "none" is the client's own
+// "no tier set" sentinel, not a real gamemode - accepted here too so a
+// clear (tier: 0) round-trips cleanly.
+const VALID_TIER_GAMEMODES = ['none', 'vanilla', 'smp', 'pot', 'uhc', 'axe', 'sword', 'nethop', 'mace'];
+const VALID_TIER_POSITIONS = ['H', 'L'];
+
+// Only these UUIDs may ever have a tier POSTed for them, regardless of
+// what the request claims or what X-Api-Key it presents - this is on top
+// of (not instead of) the existing API_KEY check below. A tier badge reads
+// as a claim about who someone is, shown to every player running the mod,
+// so unlike capes/hats it gets its own allowlist rather than relying on
+// "anyone with the API key can set anything for anyone," which is the
+// tradeoff this backend accepts everywhere else (see the SECURITY NOTE at
+// the top of this file).
+//
+// Set via env var as a comma-separated list of UUIDs (with or without
+// dashes, case-insensitive) - e.g.
+//   TIER_ALLOWED_UUIDS=069a79f4-44e9-4726-a5be-fca90e38aaf5,...
+// Look up a name's UUID at https://api.mojang.com/users/profiles/minecraft/<name>
+// (or any Mojang UUID lookup tool) - names can change, UUIDs can't, which
+// is why this list is keyed on UUID and not on "Po0w"/"insidelove"/etc.
+const TIER_ALLOWED_UUIDS = new Set(
+    (process.env.TIER_ALLOWED_UUIDS || '')
+        .split(',')
+        .map((s) => s.trim().toLowerCase().replaceAll('-', ''))
+        .filter(Boolean)
+);
+
+function isTierAllowedUuid(uuid) {
+    return TIER_ALLOWED_UUIDS.has(uuid.toLowerCase().replaceAll('-', ''));
+}
+
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
 
 // ---- storage layer - either Upstash Redis (persistent) or a local file
@@ -252,10 +285,85 @@ app.post('/api/status/:uuid', async (req, res) => {
     res.json({ ok: true, uuid: key, status });
 });
 
+// ---- tier badge (gamemode icon + "HT3"-style label) above the nametag ----
+
+app.get('/api/tier/:uuid', (req, res) => {
+    const uuid = req.params.uuid;
+    if (!UUID_PATTERN.test(uuid)) {
+        return res.status(400).json({ error: 'invalid uuid' });
+    }
+
+    const entry = (data[uuid.toLowerCase()] || {}).tier || {};
+    res.json({
+        gamemode: entry.gamemode || 'none',
+        tier: entry.tier || 0,
+        position: entry.position || 'H',
+        retired: Boolean(entry.retired),
+    });
+});
+
+app.post('/api/tier/:uuid', async (req, res) => {
+    if (API_KEY && req.header('X-Api-Key') !== API_KEY) {
+        return res.status(401).json({ error: 'missing or wrong X-Api-Key' });
+    }
+
+    const uuid = req.params.uuid;
+    if (!UUID_PATTERN.test(uuid)) {
+        return res.status(400).json({ error: 'invalid uuid' });
+    }
+
+    // Tier is restricted to a hardcoded UUID allowlist, independent of the
+    // API key check above - see TIER_ALLOWED_UUIDS's comment for why.
+    if (!isTierAllowedUuid(uuid)) {
+        return res.status(403).json({ error: 'this uuid is not allowed to have a tier badge' });
+    }
+
+    const body = req.body || {};
+
+    const gamemode = typeof body.gamemode === 'string' ? body.gamemode.toLowerCase() : 'none';
+    if (!VALID_TIER_GAMEMODES.includes(gamemode)) {
+        return res.status(400).json({ error: `unknown gamemode "${body.gamemode}", expected one of ${VALID_TIER_GAMEMODES.join(', ')}` });
+    }
+
+    const tierNumber = Number.isInteger(body.tier) ? body.tier : parseInt(body.tier, 10);
+    if (!Number.isInteger(tierNumber) || tierNumber < 0 || tierNumber > 5) {
+        return res.status(400).json({ error: 'tier must be an integer 0-5 (0 clears the badge)' });
+    }
+
+    const position = typeof body.position === 'string' ? body.position.toUpperCase() : 'H';
+    if (!VALID_TIER_POSITIONS.includes(position)) {
+        return res.status(400).json({ error: `position must be one of ${VALID_TIER_POSITIONS.join(', ')}` });
+    }
+
+    // tier: 0 is the client's "clear" sentinel (see PlayerTier#isEmpty) -
+    // store it as a fully-cleared entry rather than a "vanilla tier 0"
+    // badge, regardless of what gamemode/position/retired were sent.
+    const tier = tierNumber === 0
+        ? { gamemode: 'none', tier: 0, position: 'H', retired: false }
+        : { gamemode, tier: tierNumber, position, retired: Boolean(body.retired) };
+
+    const key = uuid.toLowerCase();
+    const entry = data[key] || {};
+    entry.tier = tier;
+    data[key] = entry;
+
+    try {
+        await persist();
+    } catch (err) {
+        console.error('Failed to persist data:', err);
+        return res.status(500).json({ error: 'failed to save' });
+    }
+
+    res.json({ ok: true, uuid: key, tier });
+});
+
 loadInitialData().then(() => {
     app.listen(PORT, () => {
         if (!API_KEY) {
             console.warn('API_KEY is not set - anyone who can reach this server can write cosmetics for any UUID. Fine for local testing, set API_KEY before exposing this publicly.');
+        }
+        if (TIER_ALLOWED_UUIDS.size === 0) {
+            console.warn('TIER_ALLOWED_UUIDS is not set - POST /api/tier will reject every request (nobody is allowlisted). Set it to a comma-separated list of UUIDs to let those players set a tier badge.');
         }
         if (!PERSISTENT) {
             console.warn('UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not set - using local data.json, which will NOT survive this service sleeping/restarting on Render\'s free tier. Set those two env vars to fix that.');

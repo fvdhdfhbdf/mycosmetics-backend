@@ -52,6 +52,7 @@ const VALID_IDS = {
         'none', 'sharingan', 'itachi', 'sasuke', 'money', 'grey_lightning', 'black_galaxy', 'black_hole',
         'white_galaxy', 'clouds', 'half_face', 'galaxy', 'purple_eyes', 'blue_eyes', 'red_eye',
         'dragon_eye', 'purple_ocean', 'patrick', 'krusty_crab', 'blue_galaxy', 'sakura', 'rgb_fish',
+        'moonlight_trail', 'crafter', 'minecon_2016', 'minecon_2011',
     ],
     HAT: ['none', 'top_hat', 'party_hat'],
     WINGS: ['none', 'heaven', 'purple', 'dragon', 'devil', 'blue_dragon'],
@@ -94,7 +95,13 @@ const TIER_ALLOWED_UUIDS = new Set(
 );
 
 function isTierAllowedUuid(uuid) {
-    return TIER_ALLOWED_UUIDS.has(uuid.toLowerCase().replaceAll('-', ''));
+    // Previously gated behind TIER_ALLOWED_UUIDS - now open to any player,
+    // same trust model as capes/hats/status (see the SECURITY NOTE at the
+    // top of this file: this backend can't verify UUIDs anyway, so this
+    // allowlist was only ever "extra" restriction on top of that, not a
+    // real guarantee). Left the env var wiring below in place, unused, in
+    // case you want to re-restrict this later.
+    return true;
 }
 
 const UUID_PATTERN = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
@@ -361,9 +368,6 @@ loadInitialData().then(() => {
     app.listen(PORT, () => {
         if (!API_KEY) {
             console.warn('API_KEY is not set - anyone who can reach this server can write cosmetics for any UUID. Fine for local testing, set API_KEY before exposing this publicly.');
-        }
-        if (TIER_ALLOWED_UUIDS.size === 0) {
-            console.warn('TIER_ALLOWED_UUIDS is not set - POST /api/tier will reject every request (nobody is allowlisted). Set it to a comma-separated list of UUIDs to let those players set a tier badge.');
         }
         if (!PERSISTENT) {
             console.warn('UPSTASH_REDIS_REST_URL/UPSTASH_REDIS_REST_TOKEN not set - using local data.json, which will NOT survive this service sleeping/restarting on Render\'s free tier. Set those two env vars to fix that.');

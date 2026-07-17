@@ -52,7 +52,7 @@ const VALID_IDS = {
         'none', 'sharingan', 'itachi', 'sasuke', 'money', 'grey_lightning', 'black_galaxy', 'black_hole',
         'white_galaxy', 'clouds', 'half_face', 'galaxy', 'purple_eyes', 'blue_eyes', 'red_eye',
         'dragon_eye', 'purple_ocean', 'patrick', 'krusty_crab', 'blue_galaxy', 'sakura', 'rgb_fish',
-        'moonlight_trail', 'crafter', 'minecon_2016', 'minecon_2011',
+        'minecon_2016', 'minecon_2011',
     ],
     HAT: ['none', 'top_hat', 'party_hat'],
     WINGS: ['none', 'heaven', 'purple', 'dragon', 'devil', 'blue_dragon'],
@@ -99,7 +99,7 @@ function isTierAllowedUuid(uuid) {
     // same trust model as capes/hats/status (see the SECURITY NOTE at the
     // top of this file: this backend can't verify UUIDs anyway, so this
     // allowlist was only ever "extra" restriction on top of that, not a
-    // real guarantee). Left the env var wiring below in place, unused, in
+    // real guarantee). Left the env var wiring above in place, unused, in
     // case you want to re-restrict this later.
     return true;
 }
